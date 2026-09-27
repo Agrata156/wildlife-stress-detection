@@ -1,0 +1,2 @@
+nodes,bio_nodes,env_nodes,started_at,ended_at,sent,ok,failed,success_rate,rps,p50_ms,p95_ms,p99_ms,max_ms,status_codes
+"5","3","2","2026-09-27T07:01:34.666Z","2026-09-27T07:01:54.358Z","18","18","0","100","0.9","271","994","994","994","{'200':18}"

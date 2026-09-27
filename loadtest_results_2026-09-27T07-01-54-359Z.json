@@ -1,0 +1,19 @@
+[
+  {
+    "nodes": 5,
+    "bio_nodes": 3,
+    "env_nodes": 2,
+    "started_at": "2026-09-27T07:01:34.666Z",
+    "ended_at": "2026-09-27T07:01:54.358Z",
+    "sent": 18,
+    "ok": 18,
+    "failed": 0,
+    "success_rate": 100,
+    "rps": 0.9,
+    "p50_ms": 271,
+    "p95_ms": 994,
+    "p99_ms": 994,
+    "max_ms": 994,
+    "status_codes": "{\"200\":18}"
+  }
+]
