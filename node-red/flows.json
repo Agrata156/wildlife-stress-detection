@@ -1,0 +1,329 @@
+[
+    {
+        "id": "a4a837db21b3cf17",
+        "type": "tab",
+        "label": "Wildlife Stress Monitor",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "0f9da964d1614b36",
+        "type": "inject",
+        "z": "a4a837db21b3cf17",
+        "name": "Every 5 seconds",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 300,
+        "wires": [
+            [
+                "a7374f4487c1f296"
+            ]
+        ]
+    },
+    {
+        "id": "a7374f4487c1f296",
+        "type": "http request",
+        "z": "a4a837db21b3cf17",
+        "name": "Get readings",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://6lc8pwd1d4.execute-api.us-east-1.amazonaws.com/default/getReadingsFunction",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 390,
+        "y": 300,
+        "wires": [
+            [
+                "16a421f9acee14c4"
+            ]
+        ]
+    },
+    {
+        "id": "16a421f9acee14c4",
+        "type": "function",
+        "z": "a4a837db21b3cf17",
+        "name": "Process readings",
+        "func": "\nlet data = msg.payload;\nif (typeof data === \"string\") {\n    try {\n        data = JSON.parse(data);\n    } catch (e) {\n        return null;\n    }\n}\nconst items = Array.isArray(data) ? data : (data.items || data.Items || data.readings || []);\nconst threshold = 60;\nconst latest = {};\nfor (const r of items) {\n    if (!r.animal_id || typeof r.stress_score !== \"number\") continue;\n    const current = latest[r.animal_id];\n    if (!current || String(r.timestamp) > String(current.timestamp)) latest[r.animal_id] = r;\n}\nconst animals = Object.values(latest).sort((a, b) => b.stress_score - a.stress_score);\nconst statusRows = animals.slice(0, 20).map((r) => ({\n    animal: r.animal_id,\n    region: r.region,\n    status: r.stress_score >= 80 ? \"HIGH\" : r.stress_score >= threshold ? \"MEDIUM\" : r.stress_score > 0 ? \"LOW\" : \"OK\",\n    score: r.stress_score,\n    cause: r.cause || \"none\",\n    heart_rate: r.heart_rate,\n    body_temp: r.temp,\n    ambient_temp: r.env_ambient_temp ?? \"-\",\n    time: r.timestamp\n}));\nconst regions = {};\nfor (const r of animals) {\n    if (!regions[r.region]) regions[r.region] = { region: r.region, animals: 0, stressed: 0, total: 0, max: 0 };\n    const g = regions[r.region];\n    g.animals++;\n    g.total += r.stress_score;\n    g.max = Math.max(g.max, r.stress_score);\n    if (r.stress_score >= threshold) g.stressed++;\n}\nconst regionRows = Object.values(regions).map((g) => ({\n    region: g.region,\n    animals: g.animals,\n    stressed: g.stressed,\n    avg_score: Math.round(g.total / g.animals),\n    max_score: g.max\n}));\nconst chartMsgs = regionRows.map((g) => ({ topic: g.region, payload: g.avg_score }));\nconst seen = context.get(\"alerted\") || {};\nconst newAlerts = [];\nfor (const r of animals) {\n    if (r.stress_score >= threshold) {\n        if (!seen[r.animal_id]) newAlerts.push(r);\n        seen[r.animal_id] = true;\n    } else {\n        delete seen[r.animal_id];\n    }\n}\ncontext.set(\"alerted\", seen);\nconst alertMsg = newAlerts.length\n    ? { payload: newAlerts.map((r) => `${r.animal_id} (${r.region}): ${r.cause}, score ${r.stress_score}`).join(\" | \") }\n    : null;\nconst stressedTotal = regionRows.reduce((sum, g) => sum + g.stressed, 0);\nnode.status({ fill: stressedTotal ? \"red\" : \"green\", shape: \"dot\", text: `${animals.length} animals, ${stressedTotal} stressed` });\nreturn [{ payload: statusRows }, { payload: regionRows }, chartMsgs, alertMsg];",
+        "outputs": 4,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 300,
+        "wires": [
+            [
+                "0f5a965f3f4129ae"
+            ],
+            [
+                "ca6d27484f56517e"
+            ],
+            [
+                "36c48b8bd7cb5497"
+            ],
+            [
+                "5f53648b487b074e"
+            ]
+        ]
+    },
+    {
+        "id": "0f5a965f3f4129ae",
+        "type": "ui-table",
+        "z": "a4a837db21b3cf17",
+        "group": "d2f9f4c99ff9d2ab",
+        "name": "",
+        "label": "Animal status",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "maxrows": 0,
+        "passthru": false,
+        "autocols": true,
+        "showSearch": true,
+        "deselect": true,
+        "selectionType": "none",
+        "columns": [],
+        "mobileBreakpoint": "sm",
+        "mobileBreakpointType": "defaults",
+        "action": "replace",
+        "className": "",
+        "x": 840,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ca6d27484f56517e",
+        "type": "ui-table",
+        "z": "a4a837db21b3cf17",
+        "group": "d2f9f4c99ff9d2ab",
+        "name": "",
+        "label": "Region summary",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "maxrows": 0,
+        "passthru": false,
+        "autocols": true,
+        "showSearch": true,
+        "deselect": true,
+        "selectionType": "none",
+        "columns": [],
+        "mobileBreakpoint": "sm",
+        "mobileBreakpointType": "defaults",
+        "action": "replace",
+        "className": "",
+        "x": 850,
+        "y": 260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "36c48b8bd7cb5497",
+        "type": "ui-chart",
+        "z": "a4a837db21b3cf17",
+        "group": "d2f9f4c99ff9d2ab",
+        "name": "",
+        "label": "Average stress by region",
+        "order": 9007199254740991,
+        "chartType": "line",
+        "category": "topic",
+        "categoryType": "msg",
+        "xAxisLabel": "",
+        "xAxisProperty": "",
+        "xAxisPropertyType": "timestamp",
+        "xAxisType": "time",
+        "xAxisFormat": "",
+        "xAxisFormatType": "auto",
+        "xmin": "",
+        "xmax": "",
+        "yAxisLabel": "",
+        "yAxisProperty": "payload",
+        "yAxisPropertyType": "msg",
+        "ymin": "",
+        "ymax": "",
+        "bins": 10,
+        "action": "append",
+        "stackSeries": false,
+        "pointShape": "circle",
+        "pointRadius": 4,
+        "showLegend": true,
+        "removeOlder": 1,
+        "removeOlderUnit": "3600",
+        "removeOlderPoints": "",
+        "colors": [
+            "#0095ff",
+            "#ff0000",
+            "#ff7f0e",
+            "#2ca02c",
+            "#a347e1",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "textColor": [
+            "#666666"
+        ],
+        "textColorDefault": true,
+        "gridColor": [
+            "#e5e5e5"
+        ],
+        "gridColorDefault": true,
+        "width": 6,
+        "height": 8,
+        "className": "",
+        "interpolation": "linear",
+        "x": 870,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5f53648b487b074e",
+        "type": "ui-notification",
+        "z": "a4a837db21b3cf17",
+        "ui": "b2bd2c6c5f38593a",
+        "position": "top right",
+        "colorDefault": true,
+        "color": "#000000",
+        "displayTime": "10",
+        "showCountdown": true,
+        "outputs": 1,
+        "allowDismiss": true,
+        "dismissText": "Close",
+        "allowConfirm": false,
+        "confirmText": "Confirm",
+        "raw": false,
+        "className": "",
+        "name": "",
+        "x": 850,
+        "y": 380,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d2f9f4c99ff9d2ab",
+        "type": "ui-group",
+        "name": "Group 1",
+        "page": "4961edc7fe3d43ab",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": true,
+        "disabled": false,
+        "groupType": "default"
+    },
+    {
+        "id": "b2bd2c6c5f38593a",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "4961edc7fe3d43ab",
+        "type": "ui-page",
+        "name": "Page 1",
+        "ui": "b2bd2c6c5f38593a",
+        "path": "/page1",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "3e898563d96560e3",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": 0,
+                "cols": 3
+            },
+            {
+                "name": "Tablet",
+                "px": 576,
+                "cols": 6
+            },
+            {
+                "name": "Small Desktop",
+                "px": 768,
+                "cols": 9
+            },
+            {
+                "name": "Desktop",
+                "px": 1024,
+                "cols": 12
+            }
+        ],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "3e898563d96560e3",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#fcfcfd",
+            "primary": "#0d74ce",
+            "bgPage": "#f9f9fb",
+            "groupBg": "#ffffff",
+            "groupOutline": "#d9d9e0"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "b95103aec6aa02ae",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "@flowfuse/node-red-dashboard": "1.31.0"
+        }
+    }
+]
