@@ -2,6 +2,7 @@ import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 
 const sqs = new SQSClient({});
 const QUEUE_URL = process.env.QUEUE_URL;
+const SENSOR_API_KEY = process.env.SENSOR_API_KEY;
 
 const RULES = {
   bio: {
@@ -31,6 +32,12 @@ function response(statusCode, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   };
+}
+
+function getHeader(headers, name) {
+  if (!headers) return undefined;
+  const key = Object.keys(headers).find((header) => header.toLowerCase() === name);
+  return key ? headers[key] : undefined;
 }
 
 function isNonEmptyString(value) {
@@ -67,6 +74,11 @@ function buildReading(body, type, rule) {
 }
 
 export const handler = async (event) => {
+  if (!SENSOR_API_KEY || getHeader(event.headers, "x-api-key") !== SENSOR_API_KEY) {
+    console.warn(JSON.stringify({ event: "unauthorised_request" }));
+    return response(401, { message: "Unauthorised" });
+  }
+
   let body;
   try {
     body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
