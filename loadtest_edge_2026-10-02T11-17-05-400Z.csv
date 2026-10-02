@@ -1,0 +1,2 @@
+mode,nodes,bio_nodes,env_nodes,started_at,ended_at,sent,ok,failed,success_rate,rps,p50_ms,p95_ms,p99_ms,max_ms,status_codes
+"edge","100","90","10","2026-10-02T11:16:01.314Z","2026-10-02T11:17:05.393Z","1939","1939","0","100","30.3","14","18","19","41","{'202':1939}"

@@ -1,0 +1,2 @@
+mode,nodes,bio_nodes,env_nodes,started_at,ended_at,sent,ok,failed,success_rate,rps,p50_ms,p95_ms,p99_ms,max_ms,status_codes
+"direct","100","90","10","2026-10-02T11:13:00.029Z","2026-10-02T11:14:05.028Z","1766","1766","0","100","27.2","257","370","2030","2389","{'200':1766}"

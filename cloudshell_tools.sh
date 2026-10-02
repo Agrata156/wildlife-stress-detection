@@ -1,6 +1,6 @@
 export AWS_DEFAULT_REGION=us-east-1
 stagestats () {
-  local s="$1"
+  local s=$(date -u -d "@$(( $(date -u -d "$1" +%s) - 10 ))" +%Y-%m-%dT%H:%M:%S.000Z)
   local e=$(date -u -d "@$(( $(date -u -d "$2" +%s) + 15 ))" +%Y-%m-%dT%H:%M:%S.000Z)
   local vals="{\":s\":{\"S\":\"$s\"},\":e\":{\"S\":\"$e\"}}"
   aws dynamodb scan --table-name AnimalStressData \
